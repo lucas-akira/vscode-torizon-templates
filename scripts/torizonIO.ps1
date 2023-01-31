@@ -237,30 +237,43 @@ $_cmd = $args[0]
 $_sub = $args[1]
 $_third = $args[2]
 
-# is duple
-if (Get-Command "$_cmd-$_sub" -ErrorAction SilentlyContinue) {
-    $_args = '"' + ($args[3..$args.Length] -join '" "') + '"'
+try {
+    # is duple
+    if (Get-Command "$_cmd-$_sub" -ErrorAction SilentlyContinue) {
+        $_args = '"' + ($args[3..$args.Length] -join '" "') + '"'
 
-    (Invoke-Expression "$_cmd-$_sub $_args")
-# is triple
-} elseif (
-    Get-Command "$_cmd-$_sub-$_third" -ErrorAction SilentlyContinue
-) {
-    $_args = '"' + ($args[3..$args.Length] -join '" "') + '"'
+        (Invoke-Expression "$_cmd-$_sub $_args")
+    # is triple
+    } elseif (
+        Get-Command "$_cmd-$_sub-$_third" -ErrorAction SilentlyContinue
+    ) {
+        $_args = '"' + ($args[3..$args.Length] -join '" "') + '"'
 
-    (Invoke-Expression "$_cmd-$_sub-$_third $_args")
-} else {
-    Write-Host ""
-    Write-Host "usage:"
-    Write-Host ""
-    Write-Host "    Get the latest hash pushed by target name:"
-    Write-Host "        target latest hash <target name>"
-    Write-Host "    Get the latest version pushed by target name:"
-    Write-Host "        target latest version <target name>"
-    Write-Host ""
-    Write-Host "    Update a fleet with a defined target:"
-    Write-Host "        update fleet latest <target name> <fleet name>"
-    Write-Host ""
+        (Invoke-Expression "$_cmd-$_sub-$_third $_args")
+    } else {
+        Write-Host ""
+        Write-Host "usage:"
+        Write-Host ""
+        Write-Host "    Get the latest hash pushed by target name:"
+        Write-Host "        target latest hash <target name>"
+        Write-Host "    Get the latest version pushed by target name:"
+        Write-Host "        target latest version <target name>"
+        Write-Host ""
+        Write-Host "    Update a fleet with a defined target:"
+        Write-Host "        update fleet latest <target name> <fleet name>"
+        Write-Host ""
 
-    exit 69
+        exit 69
+    }
+} catch {
+    Write-Host $_.Exception.Message -Foreground "Red"
+    Write-Host ""
+    $lines = $_.ScriptStackTrace.Split("`n")
+
+    foreach ($line in $lines) {
+        Write-Host "`t$line" -Foreground "DarkGray"
+    }
+
+    Write-Host ""
+    exit 500
 }
