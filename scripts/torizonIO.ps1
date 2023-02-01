@@ -12,7 +12,7 @@ param()
 
 # TODO: we need to work with the offsets and limits
 
-$_VERSION = "0.0.3"
+$_VERSION = "0.0.4"
 
 $ErrorActionPreference = "Stop"
 
@@ -32,16 +32,16 @@ $_mod = Get-Module -ListAvailable -Name "TorizonPlatformAPI"
 
 if (
     -not ($_mod) -or 
-    ($_mod.Version[0].ToString().Contains("0.0.3") -eq $false)
+    ($_mod.Version[0].ToString().Contains($_VERSION) -eq $false)
 ) {
     Install-Module `
         -Name "TorizonPlatformAPI" `
-        -RequiredVersion 0.0.3 `
+        -RequiredVersion $_VERSION `
         -Confirm:$false `
         -Force | Out-Null
 }
 
-Import-Module -Name "TorizonPlatformAPI" -RequiredVersion 0.0.3  | Out-Null
+Import-Module -Name "TorizonPlatformAPI" -RequiredVersion $_VERSION  | Out-Null
 #Write-Host -ForegroundColor DarkGreen "✅ TorizonPlatformAPI loaded"
 
 # get the bearer token
@@ -116,9 +116,9 @@ function _getFleetDevices ($_fleetName) {
     return $_devices.values
 }
 
-# TODO: fix me when the metadata be fixed by the platform team
-function _resolvePlatformWrongMetadata () {
-    $_targets = $args[0]
+function _resolvePlatformMetadata () {
+    $_packages = $args[0]
+    $_packageName = $args[1]
     $_latestV = 0
     $_hash = $null
 
@@ -127,28 +127,16 @@ function _resolvePlatformWrongMetadata () {
         "version" = $null
     }
 
-    Get-Member `
-        -InputObject $_targets.signed.targets `
-        -MemberType NoteProperty |
-            ForEach-Object {
-                $_propVal = $_targets.signed.targets.($_.Name)
+    foreach ($_package in $_packages.values) {
+        if ($_package.name -eq $_packageName) {
+            $_actualV = $_package.version
 
-                if ($_propVal.custom.name -eq $_targetName) {
-                    $_actualV = $_propVal.custom.commitSubject
-                    if ($null -eq $_actualV) {
-                        # packages are ok
-                        $_actualV = [int]$_propVal.custom.version
-                    } else {
-                        # ostree packages are not ok
-                        $_actualV = [int]$_actualV
-                    }
-
-                    if ($_latestV -lt $_actualV) {
-                        $_latestV = $_actualV
-                        $_hash = $_propVal.hashes.sha256
-                    }
-                }
+            if ($_latestV -lt $_actualV) {
+                $_latestV = $_actualV
+                $_hash = $_package.hashes.sha256
             }
+        }
+    }
 
     $_ret.hash = $_hash
     $_ret.version = $_latestV
@@ -156,28 +144,28 @@ function _resolvePlatformWrongMetadata () {
     return $_ret
 }
 
-function target-latest-hash () {
+function package-latest-hash () {
     $_targetName = $args[0]
-    $_targets = Get-TorizonPlatformAPITargets
+    $_targets = Get-TorizonPlatformAPIPackages
     $_hash = $null
 
-    $_ret = _resolvePlatformWrongMetadata $_targets
+    $_ret = _resolvePlatformMetadata $_targets $_targetName
     $_hash = $_ret.hash
 
     if ($null -eq $_hash) {
-        Write-Host -ForegroundColor Red "target not found"
+        Write-Host -ForegroundColor Red "package not found"
         exit 404
     }
 
     return $_hash
 }
 
-function target-latest-version () {
+function package-latest-version () {
     $_targetName = $args[0]
-    $_targets = Get-TorizonPlatformAPITargets
+    $_targets = Get-TorizonPlatformAPIPackages
     $_latestV = 0
 
-    $_ret = _resolvePlatformWrongMetadata $_targets
+    $_ret = _resolvePlatformMetadata $_targets
 
     # it's return 0 if not found (we can publish the version 1)
     return $_ret.version
@@ -254,10 +242,10 @@ try {
         Write-Host ""
         Write-Host "usage:"
         Write-Host ""
-        Write-Host "    Get the latest hash pushed by target name:"
-        Write-Host "        target latest hash <target name>"
-        Write-Host "    Get the latest version pushed by target name:"
-        Write-Host "        target latest version <target name>"
+        Write-Host "    Get the latest hash pushed by package name:"
+        Write-Host "        package latest hash <package name>"
+        Write-Host "    Get the latest version pushed by package name:"
+        Write-Host "        package latest version <package name>"
         Write-Host ""
         Write-Host "    Update a fleet with a defined target:"
         Write-Host "        update fleet latest <target name> <fleet name>"
