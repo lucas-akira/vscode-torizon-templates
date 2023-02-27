@@ -3,16 +3,13 @@
     'PSAvoidUsingWriteHost', ""
 )]
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute(
-    'PSUseDeclaredVarsMoreThanAssignments', ""
-)]
-[Diagnostics.CodeAnalysis.SuppressMessageAttribute(
     'PSUseApprovedVerbs', ""
 )]
 param()
 
 # TODO: we need to work with the offsets and limits
 
-$_VERSION = "0.0.4"
+$_VERSION = "0.0.7"
 
 $ErrorActionPreference = "Stop"
 
@@ -116,9 +113,9 @@ function _getFleetDevices ($_fleetName) {
     return $_devices.values
 }
 
-function _resolvePlatformMetadata () {
-    $_packages = $args[0]
-    $_packageName = $args[1]
+function _resolvePlatformMetadata ([object] $targets, [string] $targetName) {
+    $_packages = $targets
+    $_packageName = $targetName
     $_latestV = 0
     $_hash = $null
 
@@ -144,8 +141,8 @@ function _resolvePlatformMetadata () {
     return $_ret
 }
 
-function package-latest-hash () {
-    $_targetName = $args[0]
+function package-latest-hash ([string] $packageName) {
+    $_targetName = $packageName
     $_targets = Get-TorizonPlatformAPIPackages
     $_hash = $null
 
@@ -160,12 +157,11 @@ function package-latest-hash () {
     return $_hash
 }
 
-function package-latest-version () {
-    $_targetName = $args[0]
-    $_targets = Get-TorizonPlatformAPIPackages
-    $_latestV = 0
+function package-latest-version ([string] $packageName) {
+    $_packageName = $packageName
+    $_packages = Get-TorizonPlatformAPIPackages
 
-    $_ret = _resolvePlatformMetadata $_targets
+    $_ret = _resolvePlatformMetadata $_packages $_packageName
 
     # it's return 0 if not found (we can publish the version 1)
     return $_ret.version
@@ -235,7 +231,7 @@ try {
     } elseif (
         Get-Command "$_cmd-$_sub-$_third" -ErrorAction SilentlyContinue
     ) {
-        $_args = '"' + ($args[3..$args.Length] -join '" "') + '"'
+        $_args = "`"" + ($args[3..$args.Length] -join "`" `"") + "`""
 
         (Invoke-Expression "$_cmd-$_sub-$_third $_args")
     } else {
